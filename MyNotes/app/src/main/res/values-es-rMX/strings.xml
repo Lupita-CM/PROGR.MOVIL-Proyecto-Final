@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">MyNotes2.0</string>
+    <string name="Notes">Notas</string>
+    <string name="Tasks">Tareas</string>
+    <string name="Duration">Duración</string>
+    <string name="Repeat">Repetir</string>
+    <string name="Title">Titulo</string>
+    <string name="Description">Descripción</string>
+    <string name="Media">Multimedia</string>
+    <string name="Classification">Clasificación</string>
+    <string name="Date">Fecha</string>
+    <string name="Hour">Hora</string>
+    <string name="Every_hour">Cada hora</string>
+    <string name="Everyday">Cada día</string>
+    <string name="Every_week">Cada semana</string>
+    <string name="Every_month">Cada mes</string>
+    <string name="Every_year">Cada año</string>
+    <string name="Forever">Por siempre</string>
+    <string name="specific_number_of_times">Número especifico de veces</string>
+    <string name="Until">Hasta</string>
+    <string name="Photos">Imágenes</string>
+    <string name="Videos">Videos</string>
+    <string name="Audio">Audio</string>
+    <string name="Record_audio">Grabar audio</string>
+    <string name="Camera">Cámara</string>
+    <string name="Theme">Tema</string>
+    <string name="Language">Lenguaje</string>
+    <string name="Spanish">Español</string>
+    <string name="English">Inglés</string>
+    <string name="Edit">Editar</string>
+    <string name="Delete">Eliminar</string>
+    <string name="Complete">Completar</string>
+    <string name="Snooze">Posponer</string>
+    <string name="Search">Buscar</string>
+    <string name="Add">Añadir</string>
+
+</resources>
