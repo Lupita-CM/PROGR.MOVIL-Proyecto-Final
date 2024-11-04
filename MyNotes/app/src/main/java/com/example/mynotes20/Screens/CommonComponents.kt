@@ -11,8 +11,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.*
+import androidx.room.parser.Section
 import com.example.mynotes20.R
-
+import com.example.mynotes20.data.Note
+import com.example.mynotes20.data.Task
 
 
 @Composable
@@ -197,7 +199,21 @@ fun TaskAlertDialog(
 //Finaliza la funcion de la alerta
 
 @Composable
-fun BodyContent(innerPadding: PaddingValues, selectedScreen: Int, isInitialMode: Boolean, onComplete: (String) -> Unit) {
+fun BodyContent(
+    innerPadding: PaddingValues,
+    selectedScreen: Int,
+    isInitialMode: Boolean,
+    onComplete: (String) -> Unit,
+    onEditNote: (Note) -> Unit,
+    onDeleteNote: (Note) -> Unit,
+    onEditTask: (Task) -> Unit,
+    onDeleteTask: (Task) -> Unit,
+    viewModel: MainViewModel
+) {
+    // Observa los flujos de notas y tareas
+    val notes = viewModel.notes.collectAsState().value
+    val tasks = viewModel.tasks.collectAsState().value
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -212,13 +228,53 @@ fun BodyContent(innerPadding: PaddingValues, selectedScreen: Int, isInitialMode:
         )
 
         if (isInitialMode) {
-            MainScreen("Notas", showSearchBar = false, onComplete)
+            MainScreen(
+                screenType = "Notas",
+                showSearchBar = false,
+                notes = notes,
+                tasks = emptyList(), // Lista vacía, ya que solo se muestran notas
+                onComplete = onComplete,
+                onEditNote = onEditNote,
+                onDeleteNote = onDeleteNote,
+                onEditTask = onEditTask,
+                onDeleteTask = onDeleteTask
+            )
             Spacer(modifier = Modifier.height(16.dp))
-            MainScreen("Tareas", showSearchBar = false, onComplete)
+            MainScreen(
+                screenType = "Tareas",
+                showSearchBar = false,
+                notes = emptyList(), // Lista vacía, ya que solo se muestran tareas
+                tasks = tasks,
+                onComplete = onComplete,
+                onEditNote = onEditNote,
+                onDeleteNote = onDeleteNote,
+                onEditTask = onEditTask,
+                onDeleteTask = onDeleteTask
+            )
         } else {
             when (selectedScreen) {
-                0 -> MainScreen("Notas", showSearchBar = true, onComplete)
-                1 -> MainScreen("Tareas", showSearchBar = true, onComplete)
+                0 -> MainScreen(
+                    screenType = "Notas",
+                    showSearchBar = true,
+                    notes = notes,
+                    tasks = emptyList(),
+                    onComplete = onComplete,
+                    onEditNote = onEditNote,
+                    onDeleteNote = onDeleteNote,
+                    onEditTask = onEditTask,
+                    onDeleteTask = onDeleteTask
+                )
+                1 -> MainScreen(
+                    screenType = "Tareas",
+                    showSearchBar = true,
+                    notes = emptyList(),
+                    tasks = tasks,
+                    onComplete = onComplete,
+                    onEditNote = onEditNote,
+                    onDeleteNote = onDeleteNote,
+                    onEditTask = onEditTask,
+                    onDeleteTask = onDeleteTask
+                )
             }
         }
     }
@@ -226,7 +282,15 @@ fun BodyContent(innerPadding: PaddingValues, selectedScreen: Int, isInitialMode:
 
 // Inicio funcion principal
 @Composable
-fun MainScreen(screenType: String, showSearchBar: Boolean, onComplete: (String) -> Unit) {
+fun MainScreen(screenType: String,
+               showSearchBar: Boolean,
+               notes: List<Note>,
+               tasks: List<Task>,
+               onComplete: (String) -> Unit,
+               onEditNote: (Note) -> Unit,
+               onDeleteNote: (Note) -> Unit,
+               onEditTask: (Task) -> Unit,
+               onDeleteTask: (Task) -> Unit) {
     Column(
         modifier = Modifier.padding(16.dp)
     ) {
@@ -236,41 +300,24 @@ fun MainScreen(screenType: String, showSearchBar: Boolean, onComplete: (String) 
 
         Section(title = screenType) {
             if (screenType == "Notas") {
-                NoteItem(
-                    name = "Nota 1",
-                    onEdit = { /* Acción de editar Nota 1 */ },
-                    onDelete = { /* Acción de eliminar Nota 1 */ }
-                )
-                NoteItem(
-                    name = "Nota 2",
-                    onEdit = { /* Acción de editar Nota 2 */ },
-                    onDelete = { /* Acción de eliminar Nota 2 */ }
-                )
-                NoteItem(
-                    name = "Nota 3",
-                    onEdit = { /* Acción de editar Nota 3 */ },
-                    onDelete = { /* Acción de eliminar Nota 3 */ }
-                )
+                notes.forEach { note ->
+                    NoteItem(
+                        name = note.title,
+                        onEdit = { onEditNote(note) },
+                        onDelete = { onDeleteNote(note) }
+                    )
+                }
             } else {
-                TaskItem(
-                    name = "Tarea 1",
-                    onEdit = { /* Acción de editar Tarea 1 */ },
-                    onDelete = { /* Acción de eliminar Tarea 1 */ },
-                    onComplete = { onComplete("Tarea 1") } // Llama a onComplete con el nombre de la tarea
-                )
-                TaskItem(
-                    name = "Tarea 2",
-                    onEdit = { /* Acción de editar Tarea 2 */ },
-                    onDelete = { /* Acción de eliminar Tarea 2 */ },
-                    onComplete = { onComplete("Tarea 2") }
-                )
-                TaskItem(
-                    name = "Tarea 3",
-                    onEdit = { /* Acción de editar Tarea 3 */ },
-                    onDelete = { /* Acción de eliminar Tarea 3 */ },
-                    onComplete = { onComplete("Tarea 3") }
-                )
+                tasks.forEach { task ->
+                    TaskItem(
+                        name = task.title,
+                        onEdit = { onEditTask(task) },
+                        onDelete = { onDeleteTask(task) },
+                        onComplete = { onComplete(task.title) }
+                    )
+                }
             }
+
         }
     }
 }

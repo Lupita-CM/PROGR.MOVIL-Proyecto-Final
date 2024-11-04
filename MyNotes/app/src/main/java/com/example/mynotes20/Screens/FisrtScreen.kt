@@ -11,14 +11,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController // Importa NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.mynotes20.ui.theme.MyNotes20Theme
 
 @Composable
-fun FirstScreen(navController: NavController, onComplete: (String) -> Unit) {
+fun FirstScreen(navController: NavController, onComplete: (String) -> Unit = {}, mainViewModel: MainViewModel = viewModel()) {
     var selectedScreen by remember { mutableStateOf(0) } // 0 para Notas, 1 para Tareas
     var isInitialMode by remember { mutableStateOf(true) } // Modo inicial que muestra ambas secciones
+
+    val notes by mainViewModel.notes.collectAsState()
+    val tasks by mainViewModel.tasks.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -43,16 +47,26 @@ fun FirstScreen(navController: NavController, onComplete: (String) -> Unit) {
             }
         }
     ) { innerPadding ->
-        BodyContent(innerPadding, selectedScreen, isInitialMode, onComplete) // Asegúrate de pasar onComplete
+        BodyContent(
+            innerPadding = innerPadding,
+            selectedScreen = selectedScreen,
+            isInitialMode = isInitialMode,
+            onComplete = onComplete,
+            onEditNote = { note -> mainViewModel.updateNote(note) }, // Implementación de editar nota
+            onDeleteNote = { note -> mainViewModel.deleteNote(note) }, // Implementación de eliminar nota
+            onEditTask = { task -> mainViewModel.updateTask(task) }, // Implementación de editar tarea
+            onDeleteTask = { task -> mainViewModel.deleteTask(task) }, // Implementación de eliminar tarea
+            viewModel = mainViewModel
+        )// Asegúrate de pasar onComplete
     }
 }
 
 //@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    MyNotes20Theme {
-        FirstScreen(rememberNavController()) { taskName -> // Cambia a un navController por defecto
-            println("Tarea completada: $taskName") // Maneja la tarea completada
-        }
-    }
-}
+//@Composable
+//fun DefaultPreview() {
+//    MyNotes20Theme {
+//        FirstScreen(rememberNavController()) { taskName -> // Cambia a un navController por defecto
+//            println("Tarea completada: $taskName") // Maneja la tarea completada
+//        }
+//    }
+//}
