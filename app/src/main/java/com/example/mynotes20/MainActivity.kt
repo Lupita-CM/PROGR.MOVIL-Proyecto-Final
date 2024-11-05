@@ -1,5 +1,6 @@
 package com.example.mynotes20
 
+import SharedViewModel
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -27,24 +29,23 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MyNotes20Theme {
+            // Creando el ViewModel aquí
+            val viewModel: SharedViewModel = viewModel()
+            MyNotes20Theme(viewModel = viewModel) { // Pasa el viewModel al tema
                 val navController = rememberNavController() // Aquí creamos el NavController
-                SetupNavGraph(navController) // Pasamos el navController a la función SetupNavGraph
+                SetupNavGraph(navController, viewModel) // Pasamos el navController y el viewModel
             }
         }
     }
 }
 
-
-
-
 @Composable
-fun SetupNavGraph(navController: NavHostController) {
+fun SetupNavGraph(navController: NavHostController, viewModel: SharedViewModel) {
     NavHost(navController = navController, startDestination = "FirstScreen") {
         composable("FirstScreen") {
-            FirstScreen(navController) { taskName ->
+            FirstScreen(navController, onComplete = { taskName ->
                 println("Tarea completada: $taskName")
-            }
+            }, viewModel = viewModel) // Pasa el viewModel aquí
         }
         composable("MyNoteScreen") {
             MyNotesScreen(navController)

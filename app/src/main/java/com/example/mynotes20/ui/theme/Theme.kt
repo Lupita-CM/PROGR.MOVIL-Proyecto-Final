@@ -1,5 +1,6 @@
 package com.example.mynotes20.ui.theme
 
+import SharedViewModel
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -33,19 +34,14 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+
 @Composable
 fun MyNotes20Theme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    viewModel: SharedViewModel, // Agrega el ViewModel como parámetro
     content: @Composable () -> Unit
 ) {
+    val darkTheme = viewModel.isDarkTheme.value
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }

@@ -1,18 +1,67 @@
 package com.example.mynotes20.Screens
 
+import SharedViewModel
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Note
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Note
-import androidx.compose.material.icons.filled.*
 import com.example.mynotes20.R
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextButton
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.remember
 
 
 @Composable
@@ -60,10 +109,8 @@ fun NavigationBarNotesTasks(
 
 // Inicio barra
 @Composable
-fun BarNameAppAndOptions(modifier: Modifier = Modifier) {
+fun BarNameAppAndOptions(modifier: Modifier = Modifier, viewModel: SharedViewModel) {
     var showDialog by remember { mutableStateOf(false) }
-    var selectedLanguage by remember { mutableStateOf("Español") }
-    var selectedTheme by remember { mutableStateOf("Claro") }
 
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -95,13 +142,16 @@ fun BarNameAppAndOptions(modifier: Modifier = Modifier) {
     if (showDialog) {
         SettingsDialog(
             onDismiss = { showDialog = false },
-            selectedLanguage = selectedLanguage,
-            onLanguageSelected = { selectedLanguage = it },
-            selectedTheme = selectedTheme,
-            onThemeSelected = { selectedTheme = it }
+            selectedLanguage = viewModel.selectedLanguage.value,
+            onLanguageSelected = { viewModel.setLanguage(it) }, // Cambia el idioma
+            selectedTheme = if (viewModel.isDarkTheme.value) "Oscuro" else "Claro",
+            onThemeSelected = { viewModel.toggleTheme() } // Cambia el tema
         )
     }
+
+
 }
+
 
 @Composable
 fun SettingsDialog(
@@ -109,25 +159,32 @@ fun SettingsDialog(
     selectedLanguage: String,
     onLanguageSelected: (String) -> Unit,
     selectedTheme: String,
-    onThemeSelected: (String) -> Unit
+    onThemeSelected: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Configuración") },
         text = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth() // Asegura que el diálogo use todo el ancho
+                    .verticalScroll(rememberScrollState()) // Permite el desplazamiento si el contenido es grande
+                    .padding(16.dp) // Espaciado interno
+            ) {
                 Text("Selecciona un idioma:")
                 RadioGroup(
                     options = listOf("Español", "Inglés"),
                     selectedOption = selectedLanguage,
-                    onOptionSelected = onLanguageSelected
+                    onOptionSelected = onLanguageSelected // Cambia el idioma
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Selecciona un tema:")
                 RadioGroup(
                     options = listOf("Claro", "Oscuro"),
                     selectedOption = selectedTheme,
-                    onOptionSelected = onThemeSelected
+                    onOptionSelected = { theme ->
+                        onThemeSelected() // Llama a la función para alternar el tema
+                    }
                 )
             }
         },
@@ -135,9 +192,12 @@ fun SettingsDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cerrar")
             }
-        }
+        },
+        modifier = Modifier.fillMaxWidth() // Asegura que el diálogo use todo el ancho
     )
 }
+
+
 
 @Composable
 fun RadioGroup(
@@ -197,18 +257,29 @@ fun TaskAlertDialog(
 //Finaliza la funcion de la alerta
 
 @Composable
-fun BodyContent(innerPadding: PaddingValues, selectedScreen: Int, isInitialMode: Boolean, onComplete: (String) -> Unit) {
+fun BodyContent(
+    innerPadding: PaddingValues,
+    selectedScreen: Int,
+    isInitialMode: Boolean,
+    onComplete: (String) -> Unit,
+    viewModel: SharedViewModel // Agregar el ViewModel aquí
+) {
+    // Agrega un estado de desplazamiento
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding),
+            .padding(innerPadding)
+            .verticalScroll(scrollState), // Permite el desplazamiento vertical
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         BarNameAppAndOptions(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp)
+                .padding(10.dp),
+            viewModel = viewModel // Pasa el ViewModel a la barra
         )
 
         if (isInitialMode) {
@@ -223,6 +294,8 @@ fun BodyContent(innerPadding: PaddingValues, selectedScreen: Int, isInitialMode:
         }
     }
 }
+
+
 
 // Inicio funcion principal
 @Composable
@@ -274,7 +347,6 @@ fun MainScreen(screenType: String, showSearchBar: Boolean, onComplete: (String) 
         }
     }
 }
-
 
 
 // Fin funcion principal
