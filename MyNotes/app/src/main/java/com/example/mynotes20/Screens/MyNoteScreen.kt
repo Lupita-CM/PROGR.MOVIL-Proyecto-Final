@@ -3,6 +3,8 @@ package com.example.mynotes20.Screens
 
 import NoteViewModel
 import android.annotation.SuppressLint
+import android.media.Image
+import android.net.Uri
 import android.os.Bundle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -63,6 +65,17 @@ import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.activity.compose.rememberLauncherForActivityResult
+import com.example.mynotes20.data.Media
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role.Companion.Image
+import com.example.mynotes20.data.MediaItem
+import com.example.mynotes20.data.MediaTask
+
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,6 +102,47 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
     var showMediaOptions by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val dateCreation = System.currentTimeMillis()
+
+// Lanzadores para las actividades
+    var selectedMediaUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedMediaType by remember { mutableStateOf<String?>(null) }
+    var uri : Uri? = null
+    val context = LocalContext.current
+
+// Lanzadores para las actividades
+    val launcherForImage = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = {uri->
+            selectedMediaUri = uri
+            selectedMediaType = "image"
+        }
+    )
+
+    val launcherForVideo = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = {uri->
+            selectedMediaUri = uri
+            selectedMediaType = "video"
+        }
+    )
+
+    val launcherForAudio = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedMediaUri = uri
+        selectedMediaType = "audio"
+    }
+
+    val launcherForCamera = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = {success->
+            if(success) {
+                selectedMediaUri = uri
+                selectedMediaType = "image"
+            }
+        }
+    )
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -105,21 +159,21 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { /* Acción para imágenes */ }) {
+                            IconButton(onClick = { launcherForImage.launch("image/*") }) {
                                 Icon(Icons.Default.Image, contentDescription = "Imágenes")
                             }
                             Text(text = stringResource(R.string.Photos), color = Color.White)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { /* Acción para videos */ }) {
+                            IconButton(onClick = { launcherForVideo.launch("video/*") }) {
                                 Icon(Icons.Default.VideoLibrary, contentDescription = "Videos")
                             }
                             Text(text = stringResource(R.string.Videos), color = Color.White)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { /* Acción para audio */ }) {
+                            IconButton(onClick = { launcherForAudio.launch("audio/*") }) {
                                 Icon(Icons.Default.Audiotrack, contentDescription = "Audio")
                             }
                             Text(text = stringResource(R.string.Audio), color = Color.White)
@@ -133,7 +187,9 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { /* Acción para cámara */ }) {
+                            IconButton(onClick = { /*uri = ComposeFileProvider.getImageUri(context)
+                                //imageUri = uri
+                                launcherForCamera.launch(uri!!)*/ }) {
                                 Icon(Icons.Default.CameraAlt, contentDescription = "Cámara")
                             }
                             Text(text = stringResource(R.string.Camera), color = Color.White)
@@ -163,7 +219,15 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                     )
                 },
                 selected = true,
-                onClick = { navController.popBackStack() },
+                onClick = {
+                    title = TextFieldValue("")
+                    description = TextFieldValue("")
+                    date = TextFieldValue("DD/MM/AAAA")
+                    time = TextFieldValue("05:35 AM")
+                    repeat = false
+                    selectedMediaUri = null
+                    selectedMediaType = null
+                    navController.popBackStack() },
                 modifier = Modifier
                     //.fillMaxWidth()
                     .heightIn(min = 56.dp)
@@ -224,6 +288,7 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                 modifier = Modifier
             )
             // Área para multimedia
+
             Box(
                 modifier = Modifier
                     .size(100.dp)
@@ -237,6 +302,10 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            selectedMediaUri?.let { uri ->
+                Text("Archivo seleccionado: ${uri.path}", color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -389,6 +458,8 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                             // Manejar la excepción, por ejemplo, mostrar un mensaje de error
                             0L // O algún otro valor por defecto
                         }
+                        var newNote: Note? = null
+                        var newTask: Task? = null
                         if (isTask) {
                             if (taskBundle != null) {
                                 // Editar tarea existente
@@ -405,9 +476,21 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     complete = taskComplete
                                 )
                                 viewModel.update(updatedTask) // Llamar a la función update del ViewModel
+                                if (selectedMediaUri != null && selectedMediaType != null) {
+                                    val mediaTask = MediaTask(
+                                        filePath = selectedMediaUri.toString(),
+                                        mediaType = selectedMediaType!!,
+                                        taskId = taskBundle.getInt("id") // Asignar el ID de la tarea a la media
+                                    )
+                                    viewModel.insert(mediaTask)
+
+                                    // Limpiar las variables de Uri y tipo de medio
+                                    selectedMediaUri = null
+                                    selectedMediaType = null
+                                }
                             } else {
                                 // Crear nueva tarea
-                                val newTask = Task(
+                                newTask = Task(
                                     title = title.text,
                                     description = description.text,
                                     dateComplete = dateLong,
@@ -419,6 +502,18 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     complete = false
                                 )
                                 viewModel.insert(newTask)
+                                if (selectedMediaUri != null && selectedMediaType != null) {
+                                    val mediaTask = MediaTask(
+                                        filePath = selectedMediaUri.toString(),
+                                        mediaType = selectedMediaType!!,
+                                        taskId = newTask.id // Asignar el ID de la tarea a la media
+                                    )
+                                    viewModel.insert(mediaTask)
+
+                                    // Limpiar las variables de Uri y tipo de medio
+                                    selectedMediaUri = null
+                                    selectedMediaType = null
+                                }
                             }
                         } else {
                             if (noteBundle != null) {
@@ -430,16 +525,49 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     dateCreate = noteBundle.getLong("dateCreate") // Mantener la fecha de creación original
                                 )
                                 viewModel.update(updatedNote) // Llamar a la función update del ViewModel
+                                if (selectedMediaUri != null && selectedMediaType != null) {
+                                    val mediaNote = Media(
+                                        filePath = selectedMediaUri.toString(),
+                                        mediaType = selectedMediaType!!,
+                                        noteId = noteBundle.getInt("id")
+                                    )
+                                    viewModel.insert(mediaNote)
+
+                                    // Limpiar las variables de Uri y tipo de medio
+                                    selectedMediaUri = null
+                                    selectedMediaType = null
+                                }
                             } else {
                                 // Crear nueva nota
-                                val newNote = Note(
+                                newNote = Note(
                                     title = title.text,
                                     description = description.text,
                                     dateCreate = dateCreation
                                 )
                                 viewModel.insert(newNote)
+                                if (selectedMediaUri != null && selectedMediaType != null) {
+                                    val mediaNote = Media(
+                                        filePath = selectedMediaUri.toString(),
+                                        mediaType = selectedMediaType!!,
+                                        noteId = newNote.id
+                                    )
+                                    viewModel.insert(mediaNote)
+
+                                    // Limpiar las variables de Uri y tipo de medio
+                                    selectedMediaUri = null
+                                    selectedMediaType = null
+                                }
                             }
+
                         }
+
+                        title = TextFieldValue("")
+                        description = TextFieldValue("")
+                        date = TextFieldValue("DD/MM/AAAA")
+                        time = TextFieldValue("05:35 AM")
+                        repeat = false
+                        selectedMediaUri = null
+                        selectedMediaType = null
                         navController.popBackStack()
                     },
                     modifier = Modifier
@@ -452,3 +580,4 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
 
     }
 }
+

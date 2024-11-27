@@ -3,6 +3,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mynotes20.data.Media
 import com.example.mynotes20.data.MediaDao
+import com.example.mynotes20.data.MediaTask
+import com.example.mynotes20.data.MediaTaskDao
 import com.example.mynotes20.data.Note
 import com.example.mynotes20.data.NoteDao
 import com.example.mynotes20.data.Task
@@ -12,23 +14,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.asStateFlow
 
-class NoteViewModel(private val noteDao: NoteDao,
-                    private val taskDao: TaskDao,
-                    private val mediaDao: MediaDao
+class NoteViewModel(
+    private val noteDao: NoteDao,
+    private val taskDao: TaskDao,
+    private val mediaDao: MediaDao,
+    private val mediaTaskDao: MediaTaskDao
 ) : ViewModel() {
-    /*private val _notes = mutableStateListOf<Note>()
-    //val notes: List<Note> get() = _notes
-    private val _tasks = mutableStateListOf<Task>()
-    //val tasks: List<Task> get() = _tasks
-    private val _media = mutableStateListOf<Media>()
-    //val media: List<Media> get() = _media*/
     private val _notes = MutableStateFlow<List<Note>>(mutableStateListOf())
     private val _tasks = MutableStateFlow<List<Task>>(mutableStateListOf())
     private val _media = MutableStateFlow<List<Media>>(mutableStateListOf())
+    private val _mediaTask = MutableStateFlow<List<MediaTask>>(mutableStateListOf())
 
     val notes: StateFlow<List<Note>> = _notes.asStateFlow()
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
     val media: StateFlow<List<Media>> = _media.asStateFlow()
+    val mediaTask: StateFlow<List<MediaTask>> = _mediaTask.asStateFlow()
 
     init {
         getNotes()
@@ -67,8 +67,8 @@ class NoteViewModel(private val noteDao: NoteDao,
 
     private fun getMediaForTask(taskId: Int) {
         viewModelScope.launch {
-            taskDao.getMediaForTask(taskId).collect { mediaList ->
-                _media.value = (_media.value + mediaList).distinct() // Agrega y elimina duplicados
+            taskDao.getMediaForTask(taskId).collect { mediaTaskList ->
+                _mediaTask.value = (_mediaTask.value + mediaTaskList).distinct() // Agrega y elimina duplicados
             }
         }
     }
@@ -90,7 +90,7 @@ class NoteViewModel(private val noteDao: NoteDao,
     fun insert(task: Task) {
         viewModelScope.launch {
             taskDao.insert(task)
-            getNotes() // Actualiza la lista después de insertar
+            getTasks() // Actualiza la lista después de insertar
         }
     }
 
@@ -110,6 +110,22 @@ class NoteViewModel(private val noteDao: NoteDao,
     fun update(task: Task) {
         viewModelScope.launch {
             taskDao.update(task)
+        }
+    }
+
+    fun insert(media: Media) {
+        viewModelScope.launch {
+            mediaDao.insert(media)
+            getNotes() // Actualiza la lista después de insertar
+            getTasks()
+        }
+    }
+
+    fun insert(mediaTask: MediaTask) {
+        viewModelScope.launch {
+            mediaTaskDao.insert(mediaTask)
+            getNotes() // Actualiza la lista después de insertar
+            getTasks()
         }
     }
 }

@@ -7,12 +7,13 @@ import androidx.lifecycle.ViewModelProvider
 class NoteViewModelFactory(
     private val noteDao: NoteDao,
     private val taskDao: TaskDao,
-    private val mediaDao: MediaDao
+    private val mediaDao: MediaDao,
+    private val mediaTaskDao: MediaTaskDao
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return NoteViewModel(noteDao, taskDao, mediaDao) as T
+            return NoteViewModel(noteDao, taskDao, mediaDao, mediaTaskDao) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

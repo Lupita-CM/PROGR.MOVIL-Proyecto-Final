@@ -27,6 +27,8 @@ import androidx.room.Room
 import com.example.mynotes20.data.InventoryDatabase
 import com.example.mynotes20.data.InventoryDatabase.Companion.MIGRATION_1_2
 import com.example.mynotes20.data.InventoryDatabase.Companion.MIGRATION_2_3
+import com.example.mynotes20.data.InventoryDatabase.Companion.MIGRATION_3_4
+import com.example.mynotes20.data.InventoryDatabase.Companion.MIGRATION_4_5
 import com.example.mynotes20.data.MediaDao
 import com.example.mynotes20.data.NoteDao
 import com.example.mynotes20.data.NoteViewModelFactory
@@ -41,15 +43,16 @@ class MainActivity : ComponentActivity() {
                 applicationContext,
                 InventoryDatabase::class.java,
                 "notes_database"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
 
             // Obtener los DAOs
             val noteDao = db.noteDao()
             val taskDao = db.taskDao()
             val mediaDao = db.mediaDao()
+            val mediataskDao = db.mediataskDao()
 
             // Crear la fábrica y el ViewModel
-            val viewModelFactory = NoteViewModelFactory(noteDao, taskDao, mediaDao)
+            val viewModelFactory = NoteViewModelFactory(noteDao, taskDao, mediaDao, mediataskDao)
             val noteViewModel: NoteViewModel = viewModel(factory = viewModelFactory)
             val viewModel: SharedViewModel = viewModel()
 

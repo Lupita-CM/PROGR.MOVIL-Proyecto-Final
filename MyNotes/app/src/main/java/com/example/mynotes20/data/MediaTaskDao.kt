@@ -9,24 +9,21 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface TaskDao {
-    @Query("SELECT * from tasks ORDER BY dateComplete ASC")
-    fun getAllTasks(): Flow<List<Task>>
+interface MediaTaskDao {
+    @Query("SELECT * from mediaTasks ORDER BY id ASC")
+    fun getAllMedia(): Flow<List<MediaTask>>
 
-    @Query("SELECT * from tasks WHERE id = :id")
-    fun getTasks(id: Int): Flow<Task>
-
-    @Query("SELECT * FROM mediaTasks WHERE taskId = :taskId")
-    fun getMediaForTask(taskId: Int): Flow<List<MediaTask>>
+    @Query("SELECT * from mediaTasks WHERE id = :id")
+    fun getMedia(id: Int): Flow<MediaTask>
 
     // Specify the conflict strategy as IGNORE, when the user tries to add an
     // existing Item into the database Room ignores the conflict.
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(item: Task)
+    suspend fun insert(item: MediaTask)
 
     @Update
-    suspend fun update(item: Task)
+    suspend fun update(item: MediaTask)
 
     @Delete
-    suspend fun delete(item: Task)
+    suspend fun delete(item: MediaTask)
 }

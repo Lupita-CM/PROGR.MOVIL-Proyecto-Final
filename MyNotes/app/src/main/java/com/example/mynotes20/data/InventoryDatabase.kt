@@ -7,11 +7,12 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Note::class, Task::class, Media::class], version = 3, exportSchema = false)
+@Database(entities = [Note::class, Task::class, Media::class, MediaTask::class], version = 5, exportSchema = false)
 abstract class InventoryDatabase : RoomDatabase(){
     abstract fun noteDao(): NoteDao
     abstract fun taskDao(): TaskDao
     abstract fun mediaDao(): MediaDao
+    abstract fun mediataskDao(): MediaTaskDao
 
     companion object {
         @Volatile
@@ -42,6 +43,94 @@ abstract class InventoryDatabase : RoomDatabase(){
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE tasks ADD COLUMN complete INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Crear la tabla "reminders"
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                taskId INTEGER NOT NULL,
+                date INTEGER NOT NULL,
+                time TEXT NOT NULL,
+                FOREIGN KEY (taskId) REFERENCES tasks(id) ON DELETE CASCADE
+            )
+            """
+                )
+
+                // Actualizar la tabla "media"
+                database.execSQL("ALTER TABLE media RENAME TO media_old")
+                database.execSQL(
+                    """
+            CREATE TABLE media (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                filePath TEXT NOT NULL,
+                mediaType TEXT NOT NULL,
+                noteId INTEGER,
+                taskId INTEGER,
+                FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE,
+                FOREIGN KEY (taskId) REFERENCES tasks(id) ON DELETE CASCADE
+            )
+            """
+                )
+                database.execSQL("INSERT INTO media(filePath, mediaType, noteId, taskId) SELECT filePath, mediaType, noteId, taskId FROM media_old")
+                database.execSQL("DROP TABLE media_old")
+            }
+
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 1. Crear la tabla "mediaTasks"
+                database.execSQL(
+                    """
+            CREATE TABLE mediaTasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                filePath TEXT NOT NULL,
+                mediaType TEXT NOT NULL,
+                taskId INTEGER NOT NULL, 
+                FOREIGN KEY (taskId) REFERENCES tasks(id) ON DELETE CASCADE
+            )
+            """
+                )
+
+                // 2. Copiar los datos de "media" a "mediaTasks" donde taskId no es nulo
+                database.execSQL(
+                    """
+            INSERT INTO mediaTasks (filePath, mediaType, taskId)
+            SELECT filePath, mediaType, taskId FROM media WHERE taskId IS NOT NULL
+            """
+                )
+
+                // 3. Eliminar la columna "taskId" de la tabla "media"
+                // Renombrar la tabla original
+                database.execSQL("ALTER TABLE media RENAME TO media_old")
+
+                // Crear la nueva tabla sin la columna taskId
+                database.execSQL(
+                    """
+            CREATE TABLE media (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                filePath TEXT NOT NULL,
+                mediaType TEXT NOT NULL,
+                noteId INTEGER NOT NULL, 
+                FOREIGN KEY (noteId) REFERENCES notes(id) ON DELETE CASCADE
+            )
+            """
+                )
+
+                // Copiar los datos de la tabla antigua a la nueva, excluyendo taskId
+                database.execSQL(
+                    """
+            INSERT INTO media (filePath, mediaType, noteId) 
+            SELECT filePath, mediaType, noteId FROM media_old
+            """
+                )
+
+                // Eliminar la tabla antigua
+                database.execSQL("DROP TABLE media_old")
             }
         }
     }
