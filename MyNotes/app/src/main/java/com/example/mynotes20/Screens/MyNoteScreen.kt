@@ -3,9 +3,11 @@ package com.example.mynotes20.Screens
 
 import NoteViewModel
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.media.Image
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -71,10 +73,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.Role.Companion.Image
+import androidx.core.content.ContextCompat
 import com.example.mynotes20.data.MediaItem
 import com.example.mynotes20.data.MediaTask
+import coil.compose.AsyncImage
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -103,45 +113,68 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val dateCreation = System.currentTimeMillis()
 
-// Lanzadores para las actividades
-    var selectedMediaUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedMediaType by remember { mutableStateOf<String?>(null) }
-    var uri : Uri? = null
+// Variables para gestionar los archivos seleccionados
+    val selectedMediaList = remember { mutableStateListOf<Pair<Uri, String>>() } // Lista de URIs y tipos de medios
+    //var showMediaOptions by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-// Lanzadores para las actividades
+    // Lanzadores para permisos
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (!isGranted) {
+                Toast.makeText(context, "Permiso denegado para acceder a archivos", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    // Lanzadores para actividades
     val launcherForImage = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = {uri->
-            selectedMediaUri = uri
-            selectedMediaType = "image"
+        contract = ActivityResultContracts.GetMultipleContents(),
+        onResult = { uris ->
+            uris.forEach { uri ->
+                selectedMediaList.add(uri to "image")
+            }
         }
     )
 
     val launcherForVideo = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = {uri->
-            selectedMediaUri = uri
-            selectedMediaType = "video"
+        contract = ActivityResultContracts.GetMultipleContents(),
+        onResult = { uris ->
+            uris.forEach { uri ->
+                selectedMediaList.add(uri to "video")
+            }
         }
     )
 
     val launcherForAudio = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        selectedMediaUri = uri
-        selectedMediaType = "audio"
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        uris.forEach { uri ->
+            selectedMediaList.add(uri to "audio")
+        }
     }
 
     val launcherForCamera = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
-        onResult = {success->
-            if(success) {
-                selectedMediaUri = uri
-                selectedMediaType = "image"
+        onResult = { success ->
+            if (success) {
+                selectedMediaList.add(Uri.EMPTY to "image") // Reemplaza Uri.EMPTY con la URI generada
             }
         }
     )
+
+    // Solicitar permiso para acceder a archivos
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.READ_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -225,8 +258,8 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                     date = TextFieldValue("DD/MM/AAAA")
                     time = TextFieldValue("05:35 AM")
                     repeat = false
-                    selectedMediaUri = null
-                    selectedMediaType = null
+                    /*selectedMediaUri = null
+                    selectedMediaType = null*/
                     navController.popBackStack() },
                 modifier = Modifier
                     //.fillMaxWidth()
@@ -303,10 +336,49 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            selectedMediaUri?.let { uri ->
-                Text("Archivo seleccionado: ${uri.path}", color = Color.White)
+            LazyColumn (
+                modifier = Modifier.heightIn(max = 200.dp) // Limitar la altura del LazyColumn
+            ){
+                items(selectedMediaList) { media ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        when (media.second) {
+                            "image" -> {
+                                AsyncImage(
+                                    model = media.first,
+                                    contentDescription = "Imagen seleccionada",
+                                    modifier = Modifier.size(50.dp)
+                                )
+                            }
+                            "video" -> {
+                                Icon(
+                                    imageVector = Icons.Filled.VideoLibrary,
+                                    contentDescription = "Video seleccionado",
+                                    tint = Color.White // o el color que prefieras
+                                )
+                            }
+                            "audio" -> {
+                                Icon(
+                                    imageVector = Icons.Filled.Audiotrack,
+                                    contentDescription = "Audio seleccionado",
+                                    tint = Color.White // o el color que prefieras
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${media.second.capitalize()}: ${media.first}",
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
             }
+            // Mostrar archivos seleccionados
+            /*Spacer(modifier = Modifier.height(8.dp))
+            LazyColumn {
+                items(selectedMediaUris) { uri ->
+                    Text("Archivo seleccionado: ${uri.path}", color = Color.White)
+                }
+            }*/
 
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -449,38 +521,60 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                     .fillMaxSize(), // Ocupa todo el espacio disponible
                 contentAlignment = Alignment.Center // Alinea el contenido en el centro
             ) {
+                val lifecycleOwner = LocalLifecycleOwner.current
                 // Agregamos un botón que contiene el texto "Añadir"
                 Button(
                     onClick = {
-                        val dateLong = try {
-                            dateFormat.parse(date.text)?.time ?: 0L
-                        } catch (e: ParseException) {
-                            // Manejar la excepción, por ejemplo, mostrar un mensaje de error
-                            0L // O algún otro valor por defecto
-                        }
-                        var newNote: Note? = null
-                        var newTask: Task? = null
-                        if (isTask) {
-                            if (taskBundle != null) {
-                                // Editar tarea existente
-                                val updatedTask = Task(
-                                    id = taskBundle.getInt("id"), // Obtener el ID de la tarea
-                                    title = title.text,
-                                    description = description.text,
-                                    dateComplete = dateLong,
-                                    dateCreate = taskBundle.getLong("dateCreate"), // Mantener la fecha de creación original
-                                    time = time.text,
-                                    repeat = repeat,
-                                    repeatFrecuency = "",
-                                    duration = "",
-                                    complete = taskComplete
-                                )
-                                viewModel.update(updatedTask) // Llamar a la función update del ViewModel
+                        lifecycleOwner.lifecycleScope.launch {
+                            val dateLong = try {
+                                dateFormat.parse(date.text)?.time ?: 0L
+                            } catch (e: ParseException) {
+                                // Manejar la excepción, por ejemplo, mostrar un mensaje de error
+                                0L // O algún otro valor por defecto
+                            }
+                            var newNote: Note? = null
+                            var newTask: Task? = null
+
+                            if (isTask) {
+                                val taskId = if (taskBundle != null) {
+                                    // Editar tarea existente
+                                    val updatedTask = Task(
+                                        id = taskBundle.getInt("id"), // Obtener el ID de la tarea
+                                        title = title.text,
+                                        description = description.text,
+                                        dateComplete = dateLong,
+                                        dateCreate = taskBundle.getLong("dateCreate"), // Mantener la fecha de creación original
+                                        time = time.text,
+                                        repeat = repeat,
+                                        repeatFrecuency = "",
+                                        duration = "",
+                                        complete = taskComplete
+                                    )
+                                    viewModel.update(updatedTask) // Llamar a la función update del ViewModel
+                                    newTask = updatedTask
+                                } else {
+                                    // Crear nueva tarea
+                                    newTask = Task(
+                                        title = title.text,
+                                        description = description.text,
+                                        dateComplete = dateLong,
+                                        dateCreate = dateCreation,
+                                        time = time.text,
+                                        repeat = repeat,
+                                        repeatFrecuency = "",
+                                        duration = "",
+                                        complete = false
+                                    )
+                                    //viewModel.insert(newTask)
+                                    val id = viewModel.insertTaskAndGetId(newTask)
+                                    newTask = newTask.copy(id = id.toInt())
+                                }
+                                /*newTask?.let {
                                 if (selectedMediaUri != null && selectedMediaType != null) {
                                     val mediaTask = MediaTask(
                                         filePath = selectedMediaUri.toString(),
                                         mediaType = selectedMediaType!!,
-                                        taskId = taskBundle.getInt("id") // Asignar el ID de la tarea a la media
+                                        taskId = it!!.id // Usar el ID de la tarea
                                     )
                                     viewModel.insert(mediaTask)
 
@@ -488,48 +582,46 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     selectedMediaUri = null
                                     selectedMediaType = null
                                 }
-                            } else {
-                                // Crear nueva tarea
-                                newTask = Task(
-                                    title = title.text,
-                                    description = description.text,
-                                    dateComplete = dateLong,
-                                    dateCreate = dateCreation,
-                                    time = time.text,
-                                    repeat = repeat,
-                                    repeatFrecuency = "",
-                                    duration = "",
-                                    complete = false
-                                )
-                                viewModel.insert(newTask)
-                                if (selectedMediaUri != null && selectedMediaType != null) {
-                                    val mediaTask = MediaTask(
-                                        filePath = selectedMediaUri.toString(),
-                                        mediaType = selectedMediaType!!,
-                                        taskId = newTask.id // Asignar el ID de la tarea a la media
-                                    )
-                                    viewModel.insert(mediaTask)
+                            }*/
 
-                                    // Limpiar las variables de Uri y tipo de medio
-                                    selectedMediaUri = null
-                                    selectedMediaType = null
+                                newTask.let { task ->
+                                    selectedMediaList.forEach { media ->
+                                        val mediaTask = MediaTask(
+                                            filePath = media.first.toString(),
+                                            mediaType = media.second,
+                                            taskId = task.id
+                                        )
+                                        viewModel.insertMediaTask(mediaTask)
+                                    }
                                 }
-                            }
-                        } else {
-                            if (noteBundle != null) {
-                                // Editar nota existente
-                                val updatedNote = Note(
-                                    id = noteBundle.getInt("id"), // Obtener el ID de la nota
-                                    title = title.text,
-                                    description = description.text,
-                                    dateCreate = noteBundle.getLong("dateCreate") // Mantener la fecha de creación original
-                                )
-                                viewModel.update(updatedNote) // Llamar a la función update del ViewModel
+                            } else {
+                                if (noteBundle != null) {
+                                    // Editar nota existente
+                                    val updatedNote = Note(
+                                        id = noteBundle.getInt("id"), // Obtener el ID de la nota
+                                        title = title.text,
+                                        description = description.text,
+                                        dateCreate = noteBundle.getLong("dateCreate") // Mantener la fecha de creación original
+                                    )
+                                    viewModel.update(updatedNote) // Llamar a la función update del ViewModel
+                                    newNote = updatedNote
+                                } else {
+                                    // Crear nueva nota
+                                    newNote = Note(
+                                        title = title.text,
+                                        description = description.text,
+                                        dateCreate = dateCreation
+                                    )
+                                    //viewModel.insert(newNote)
+                                    val id = viewModel.insertNoteAndGetId(newNote)
+                                    newNote = newNote.copy(id = id.toInt())
+                                }
+                                /*newNote?.let {
                                 if (selectedMediaUri != null && selectedMediaType != null) {
                                     val mediaNote = Media(
                                         filePath = selectedMediaUri.toString(),
                                         mediaType = selectedMediaType!!,
-                                        noteId = noteBundle.getInt("id")
+                                        noteId = it.id // Usar el ID de la nota
                                     )
                                     viewModel.insert(mediaNote)
 
@@ -537,38 +629,29 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     selectedMediaUri = null
                                     selectedMediaType = null
                                 }
-                            } else {
-                                // Crear nueva nota
-                                newNote = Note(
-                                    title = title.text,
-                                    description = description.text,
-                                    dateCreate = dateCreation
-                                )
-                                viewModel.insert(newNote)
-                                if (selectedMediaUri != null && selectedMediaType != null) {
-                                    val mediaNote = Media(
-                                        filePath = selectedMediaUri.toString(),
-                                        mediaType = selectedMediaType!!,
-                                        noteId = newNote.id
-                                    )
-                                    viewModel.insert(mediaNote)
-
-                                    // Limpiar las variables de Uri y tipo de medio
-                                    selectedMediaUri = null
-                                    selectedMediaType = null
+                            }*/
+                                // Insertar archivos multimedia
+                                newNote.let { note ->
+                                    selectedMediaList.forEach { media ->
+                                        val mediaNote = Media(
+                                            filePath = media.first.toString(),
+                                            mediaType = media.second,
+                                            noteId = note.id
+                                        )
+                                        viewModel.insertMedia(mediaNote)
+                                    }
                                 }
                             }
 
+                            title = TextFieldValue("")
+                            description = TextFieldValue("")
+                            date = TextFieldValue("DD/MM/AAAA")
+                            time = TextFieldValue("05:35 AM")
+                            repeat = false
+                            // Limpieza de la lista de archivos seleccionados
+                            selectedMediaList.clear()
+                            navController.popBackStack()
                         }
-
-                        title = TextFieldValue("")
-                        description = TextFieldValue("")
-                        date = TextFieldValue("DD/MM/AAAA")
-                        time = TextFieldValue("05:35 AM")
-                        repeat = false
-                        selectedMediaUri = null
-                        selectedMediaType = null
-                        navController.popBackStack()
                     },
                     modifier = Modifier
                         .padding(16.dp) // Añade un margen

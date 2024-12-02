@@ -10,11 +10,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RemindersDao {
-    @Query("SELECT * from reminders ORDER BY date ASC")
-    fun getAllTasks(): Flow<List<Reminders>>
+    @Query("SELECT * FROM reminders")
+    fun getAllReminders(): Flow<List<Reminders>>
 
-    @Query("SELECT * from reminders WHERE id = :id")
-    fun getTasks(id: Int): Flow<Reminders>
+    @Query("SELECT * FROM reminders WHERE taskId = :taskId")
+    fun getRemindersForTask(taskId: Int): Flow<List<Reminders>>
 
     // Specify the conflict strategy as IGNORE, when the user tries to add an
     // existing Item into the database Room ignores the conflict.

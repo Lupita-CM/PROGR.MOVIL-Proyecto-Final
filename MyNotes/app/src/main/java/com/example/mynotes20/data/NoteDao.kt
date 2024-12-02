@@ -22,11 +22,14 @@ interface NoteDao {
     // Specify the conflict strategy as IGNORE, when the user tries to add an
     // existing Item into the database Room ignores the conflict.
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(note: Note)
+    suspend fun insert(note: Note): Long
 
     @Update
     suspend fun update(note: Note)
 
     @Delete
     suspend fun delete(note: Note)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMedia(media: Media)
 }

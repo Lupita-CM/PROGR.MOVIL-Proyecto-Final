@@ -113,19 +113,119 @@ class NoteViewModel(
         }
     }
 
-    fun insert(media: Media) {
+    /*fun insert(media: Media) {
         viewModelScope.launch {
             mediaDao.insert(media)
-            getNotes() // Actualiza la lista después de insertar
-            getTasks()
+            *//*getNotes() // Actualiza la lista después de insertar
+            getTasks()*//*
         }
     }
 
     fun insert(mediaTask: MediaTask) {
         viewModelScope.launch {
             mediaTaskDao.insert(mediaTask)
-            getNotes() // Actualiza la lista después de insertar
-            getTasks()
+            *//*getNotes() // Actualiza la lista después de insertar
+            getTasks()*//*
+        }
+    }*/
+
+    fun insert(media: Media) {
+        viewModelScope.launch {
+            mediaDao.insert(media)
+        }
+    }
+
+    fun insert(mediaTask: MediaTask) {
+        viewModelScope.launch {
+            mediaTaskDao.insert(mediaTask)
+        }
+    }
+
+    // Insertar tarea y obtener ID
+    suspend fun insertTaskAndGetId(task: Task): Int {
+//        var id: Int = -1
+//        viewModelScope.launch {
+//            id = taskDao.insert(task).toInt()
+//        }
+//        return id
+        return taskDao.insert(task).toInt()
+    }
+
+    // Insertar tarea y obtener ID
+    suspend fun insertNoteAndGetId(note: Note): Int {
+//        var id: Int = -1
+//        viewModelScope.launch {
+//            id = noteDao.insert(note).toInt()
+//        }
+//        return id
+        return noteDao.insert(note).toInt()
+    }
+
+    fun upsertNoteAndMedia(note: Note, media: Media?, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                // Verificar si es una actualización o inserción
+                if (note.id == 0) {
+                    // Inserción
+                    val noteId = noteDao.insert(note)
+                    media?.let {
+                        it.noteId = noteId.toInt() // Asignar el ID generado
+                        noteDao.insertMedia(it) // Inserta el medio
+                    }
+                    onComplete(true) // Operación completada con éxito
+                } else {
+                    // Actualización
+                    noteDao.update(note)
+                    media?.let {
+                        it.noteId = note.id // Usar el ID existente
+                        noteDao.insertMedia(it) // Inserta o actualiza el medio
+                    }
+                    onComplete(true) // Operación completada con éxito
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onComplete(false) // Manejo de errores
+            }
+        }
+    }
+
+    fun upsertTaskAndMedia(task: Task, mediaTask: MediaTask?, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                // Verificar si es una actualización o inserción
+                if (task.id == 0) {
+                    // Inserción
+                    val taskId = taskDao.insert(task)
+                    mediaTask?.let {
+                        it.taskId = taskId.toInt() // Asignar el ID generado
+                        taskDao.insertMediaTask(it) // Inserta el medio
+                    }
+                    onComplete(true) // Operación completada con éxito
+                } else {
+                    // Actualización
+                    taskDao.update(task)
+                    mediaTask?.let {
+                        it.taskId = task.id // Usar el ID existente
+                        taskDao.insertMediaTask(it) // Inserta o actualiza el medio
+                    }
+                    onComplete(true) // Operación completada con éxito
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onComplete(false) // Manejo de errores
+            }
+        }
+    }
+
+    fun insertMediaTask(mediaTask: MediaTask) {
+        viewModelScope.launch {
+            taskDao.insertMediaTask(mediaTask)
+        }
+    }
+
+    fun insertMedia(media: Media) {
+        viewModelScope.launch {
+            noteDao.insertMedia(media)
         }
     }
 }

@@ -18,12 +18,12 @@ interface MediaTaskDao {
 
     // Specify the conflict strategy as IGNORE, when the user tries to add an
     // existing Item into the database Room ignores the conflict.
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(item: MediaTask)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(mediaTask: MediaTask)
 
     @Update
-    suspend fun update(item: MediaTask)
+    suspend fun update(mediaTask: MediaTask)
 
     @Delete
-    suspend fun delete(item: MediaTask)
+    suspend fun delete(mediaTask: MediaTask)
 }

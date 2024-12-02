@@ -7,7 +7,7 @@ class OfflineTasksRepository (private val TaskDao: TaskDao) : TasksRepository{
 
     override fun getTaskStream(id: Int): Flow<Task?> = TaskDao.getTasks(id)
 
-    override suspend fun insertTask(task: Task) = TaskDao.insert(task)
+    override suspend fun insertTask(task: Task):Long = TaskDao.insert(task)
 
     override suspend fun deleteTask(task: Task) = TaskDao.delete(task)
 

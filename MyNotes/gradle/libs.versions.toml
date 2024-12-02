@@ -4,24 +4,22 @@ kotlin = "1.9.0"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
-espressoCore = "3.6.1"
+espressoCore = "3.5.0"
 lifecycleRuntimeKtx = "2.8.6"
 activityCompose = "1.9.2"
 composeBom = "2024.04.01"
-roomCommon = "2.7.0-alpha11"
-common = "1.1.1"
-roomKtx = "2.6.1"
-hiltCommon = "1.2.0"  # Aquí está la versión de roomCommon
-room = "2.5.2"
+room = "2.6.1"
 ksp = "1.9.0-1.0.11"
-kotlinx-coroutines = "1.7.3"
+kotlinxCoroutines = "1.7.3"
+coil = "2.4.0"
 # Si necesitas un plugin específico para Room, define su versión correctamente o elimínalo si no es necesario
 
 [libraries]
-kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room"}
+room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version = "1.0.1" }
 navigation-compose = { module = "androidx.navigation:navigation-compose", version = "2.5.0" }
 material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version = "1.7.3" }
@@ -30,7 +28,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
-androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose", module = "androidx.activity:activity-compose"}
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
@@ -38,11 +36,6 @@ androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-room-common = { group = "androidx.room", name = "room-common", version.ref = "roomCommon" }
-common = { group = "android.arch.lifecycle", name = "common", version.ref = "common" }
-androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
-androidx-hilt-common = { group = "androidx.hilt", name = "hilt-common", version.ref = "hiltCommon" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
