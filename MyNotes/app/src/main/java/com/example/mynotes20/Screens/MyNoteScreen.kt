@@ -7,7 +7,9 @@ import android.content.pm.PackageManager
 import android.media.Image
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -74,18 +76,54 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.Role.Companion.Image
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.mynotes20.data.MediaItem
 import com.example.mynotes20.data.MediaTask
 import coil.compose.AsyncImage
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
+
+@Composable
+fun MediaItem(mediaType: String, filePath: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        when (mediaType) {
+            "image" -> {
+                AsyncImage(
+                    model = filePath,
+                    contentDescription = "Imagen",
+                    modifier = Modifier.size(80.dp)
+                )
+            }
+            "video" -> {
+                Icon(
+                    imageVector = Icons.Filled.VideoLibrary,
+                    contentDescription = "Video",
+                    tint = Color.White
+                )
+            }
+            "audio" -> {
+                Icon(
+                    imageVector = Icons.Filled.Audiotrack,
+                    contentDescription = "Audio",
+                    tint = Color.White
+                )
+            }
+        }
+        /*Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "${mediaType.capitalize()}: $filePath",
+            modifier = Modifier.padding(8.dp)
+        )*/
+    }
+}
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,13 +137,20 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
     var taskComplete by remember { mutableStateOf(taskBundle?.getBoolean("complete") ?: false)   }
     var title by remember {mutableStateOf(TextFieldValue(noteBundle?.getString("title") ?: taskBundle?.getString("title") ?: "")) }
     var description by remember { mutableStateOf(TextFieldValue(noteBundle?.getString("description") ?: taskBundle?.getString("description") ?: "")) }
-    var date by remember { mutableStateOf(TextFieldValue(
-        taskBundle?.getLong("date")?.let {
-            val date = Date(it)
-            val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-            dateFormat.format(date)
-        } ?: "DD/MM/AAAA")
-    )}
+    // Inicializa la variable date con la fecha actual si taskBundle es nulo, de lo contrario, usa la fecha de taskBundle
+    var date by remember {
+        mutableStateOf(
+            TextFieldValue(
+                if (taskBundle == null) {
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+                } else {
+                    taskBundle.getLong("dateComplete").let {
+                        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it))
+                    }
+                }
+            )
+        )
+    }
     var time by remember { mutableStateOf(TextFieldValue(taskBundle?.getString("time") ?: "05:35 AM")) }
     var repeat by remember { mutableStateOf(taskBundle?.getBoolean("repeat") ?: false) }
     val scrollState = rememberScrollState()
@@ -179,7 +224,12 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
+            val REQUEST_CODE_CAMERA = 100
+            val REQUEST_CODE_READ_EXTERNAL_STORAGE = 101
+            val REQUEST_CODE_RECORD_AUDIO = 102
             if (showMediaOptions) {
+                val context = LocalContext.current
+                val activity = LocalContext.current as ComponentActivity
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -213,16 +263,41 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { /* Acción para grabar audio */ }) {
+                            IconButton(onClick = { if (ContextCompat.checkSelfPermission(context,
+                                    android.Manifest.permission.RECORD_AUDIO)
+                                == PackageManager.PERMISSION_GRANTED
+
+                                ) {
+                                    // Acción para grabar audio si el permiso está concedido
+                                } else {
+                                    // Solicitar el permiso de grabación de audio
+                                    ActivityCompat.requestPermissions(
+                                        activity,
+                                        arrayOf(android.Manifest.permission.RECORD_AUDIO),
+                                        REQUEST_CODE_RECORD_AUDIO
+                                    )
+                                }
+                            }) {
                                 Icon(Icons.Default.Mic, contentDescription = "Grabar Audio")
                             }
                             Text(text = stringResource(R.string.Record_audio), color = Color.White)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { /*uri = ComposeFileProvider.getImageUri(context)
-                                //imageUri = uri
-                                launcherForCamera.launch(uri!!)*/ }) {
+                            IconButton(onClick = { if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA)
+                                == PackageManager.PERMISSION_GRANTED
+                            ) {
+                                // Lanzar la actividad de la cámara si el permiso está concedido
+                                val uri = ComposeFileProvider.getImageUri(context)
+                                launcherForCamera.launch(uri)
+                            } else {
+                                // Solicitar el permiso de la cámara
+                                ActivityCompat.requestPermissions(
+                                    activity,
+                                    arrayOf(android.Manifest.permission.CAMERA),
+                                    REQUEST_CODE_CAMERA
+                                )
+                            } }) {
                                 Icon(Icons.Default.CameraAlt, contentDescription = "Cámara")
                             }
                             Text(text = stringResource(R.string.Camera), color = Color.White)
@@ -336,49 +411,59 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
+
+            val noteId = noteBundle?.getInt("id") ?: 0
+            val taskId = taskBundle?.getInt("id") ?: 0
+
+            val mediaForNote by viewModel.getMediasForNote(noteId).collectAsState(initial = emptyList())
+            val mediaForTask by viewModel.getMediasForTask(taskId).collectAsState(initial = emptyList())
+
             LazyColumn (
-                modifier = Modifier.heightIn(max = 200.dp) // Limitar la altura del LazyColumn
+                modifier = Modifier.heightIn(max = 200.dp) // Ajusta la altura según sea necesario
             ){
-                items(selectedMediaList) { media ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        when (media.second) {
-                            "image" -> {
-                                AsyncImage(
-                                    model = media.first,
-                                    contentDescription = "Imagen seleccionada",
-                                    modifier = Modifier.size(50.dp)
-                                )
-                            }
-                            "video" -> {
-                                Icon(
-                                    imageVector = Icons.Filled.VideoLibrary,
-                                    contentDescription = "Video seleccionado",
-                                    tint = Color.White // o el color que prefieras
-                                )
-                            }
-                            "audio" -> {
-                                Icon(
-                                    imageVector = Icons.Filled.Audiotrack,
-                                    contentDescription = "Audio seleccionado",
-                                    tint = Color.White // o el color que prefieras
-                                )
-                            }
+                items(mediaForNote) { media ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        MediaItem(media.mediaType, media.filePath)
+                        IconButton(onClick = { viewModel.deleteMedia(media) }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar archivo", tint = Color.Red)
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${media.second.capitalize()}: ${media.first}",
-                            modifier = Modifier.padding(8.dp)
-                        )
+                    }
+                }
+                items(mediaForTask) { media ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        MediaItem(media.mediaType, media.filePath)
+                        IconButton(onClick = { viewModel.deleteMediaTask(media) }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar archivo", tint = Color.Red)
+                        }
+                    }
+                }
+
+                items(selectedMediaList) { media ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        MediaItem(media.second, media.first.toString())
+                        IconButton(onClick = {
+                            selectedMediaList.remove(media)
+                        }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar archivo", tint = Color.Red)
+                        }
                     }
                 }
             }
-            // Mostrar archivos seleccionados
-            /*Spacer(modifier = Modifier.height(8.dp))
-            LazyColumn {
-                items(selectedMediaUris) { uri ->
-                    Text("Archivo seleccionado: ${uri.path}", color = Color.White)
-                }
-            }*/
 
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -526,12 +611,33 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                 Button(
                     onClick = {
                         lifecycleOwner.lifecycleScope.launch {
-                            val dateLong = try {
-                                dateFormat.parse(date.text)?.time ?: 0L
+                            // Mostrar la fecha antes de convertirla
+                            Log.d("DateDebug", "Fecha ingresada por el usuario: ${date.text}")
+
+                            val updatedDate = date.text // Obtener la fecha ingresada por el usuario
+
+// Intentar convertir la fecha de vuelta a Long
+                            var dateLong = try {
+                                val parsedDate = dateFormat.parse(updatedDate)
+                                if (parsedDate != null) {
+                                    Log.d("DateDebug", "Fecha parseada correctamente: ${parsedDate.time}")
+                                }
+                                parsedDate?.time ?: throw ParseException("Invalid date", 0) // Asegurarse de que la fecha no sea null
                             } catch (e: ParseException) {
-                                // Manejar la excepción, por ejemplo, mostrar un mensaje de error
-                                0L // O algún otro valor por defecto
+                                // Manejar la excepción, por ejemplo, mostrando un mensaje de error
+                                Log.e("DateError", "Error al convertir la fecha: ${e.message}")
+                                null // Si la conversión falla, devolvemos null
                             }
+
+// Verifica si la conversión fue exitosa y la fechaLong no es nula antes de actualizar la base de datos
+                            if (dateLong == null) {
+                                dateLong = dateCreation
+                                // Si la conversión falla, puedes asignar un valor por defecto o mostrar un mensaje al usuario
+                                Log.w("DateWarning", "Fecha inválida, no se guardó en la base de datos.")
+                            } else {
+                                Log.d("DateDebug", "Fecha validada y convertida a Long: $dateLong")
+                            }
+
                             var newNote: Note? = null
                             var newTask: Task? = null
 
@@ -552,6 +658,7 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     )
                                     viewModel.update(updatedTask) // Llamar a la función update del ViewModel
                                     newTask = updatedTask
+                                    Log.d("DateDebug", "Tarea guardada con fecha: ${newTask.dateComplete}")
                                 } else {
                                     // Crear nueva tarea
                                     newTask = Task(
@@ -568,21 +675,8 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     //viewModel.insert(newTask)
                                     val id = viewModel.insertTaskAndGetId(newTask)
                                     newTask = newTask.copy(id = id.toInt())
+                                    Log.d("DateDebug", "Tarea guardada con fecha: ${newTask.dateComplete}")
                                 }
-                                /*newTask?.let {
-                                if (selectedMediaUri != null && selectedMediaType != null) {
-                                    val mediaTask = MediaTask(
-                                        filePath = selectedMediaUri.toString(),
-                                        mediaType = selectedMediaType!!,
-                                        taskId = it!!.id // Usar el ID de la tarea
-                                    )
-                                    viewModel.insert(mediaTask)
-
-                                    // Limpiar las variables de Uri y tipo de medio
-                                    selectedMediaUri = null
-                                    selectedMediaType = null
-                                }
-                            }*/
 
                                 newTask.let { task ->
                                     selectedMediaList.forEach { media ->
@@ -616,20 +710,6 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     val id = viewModel.insertNoteAndGetId(newNote)
                                     newNote = newNote.copy(id = id.toInt())
                                 }
-                                /*newNote?.let {
-                                if (selectedMediaUri != null && selectedMediaType != null) {
-                                    val mediaNote = Media(
-                                        filePath = selectedMediaUri.toString(),
-                                        mediaType = selectedMediaType!!,
-                                        noteId = it.id // Usar el ID de la nota
-                                    )
-                                    viewModel.insert(mediaNote)
-
-                                    // Limpiar las variables de Uri y tipo de medio
-                                    selectedMediaUri = null
-                                    selectedMediaType = null
-                                }
-                            }*/
                                 // Insertar archivos multimedia
                                 newNote.let { note ->
                                     selectedMediaList.forEach { media ->

@@ -41,4 +41,11 @@ interface MediaDao {
 
     @Delete
     suspend fun delete(media: Media)
+
+    @Query("SELECT * FROM media WHERE noteId = :noteId")
+    fun getMediaForNoteId(noteId: Int): List<Media>
+
+    // Si estás usando Flow para observar los cambios:
+    @Query("SELECT * FROM media WHERE noteId = :noteId")
+    fun getMediaForNoteIdFlow(noteId: Int): Flow<List<Media>>
 }

@@ -25,5 +25,5 @@ interface RemindersDao {
     suspend fun update(item: Reminders)
 
     @Delete
-    suspend fun delete(item: Task)
+    suspend fun delete(item: Reminders)
 }

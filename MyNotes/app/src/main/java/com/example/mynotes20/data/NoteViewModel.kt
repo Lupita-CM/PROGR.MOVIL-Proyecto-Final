@@ -7,8 +7,10 @@ import com.example.mynotes20.data.MediaTask
 import com.example.mynotes20.data.MediaTaskDao
 import com.example.mynotes20.data.Note
 import com.example.mynotes20.data.NoteDao
+import com.example.mynotes20.data.Reminders
 import com.example.mynotes20.data.Task
 import com.example.mynotes20.data.TaskDao
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -72,6 +74,9 @@ class NoteViewModel(
             }
         }
     }
+
+    fun getMediasForNote(noteId: Int): Flow<List<Media>> = mediaDao.getMediaForNoteIdFlow(noteId)
+    fun getMediasForTask(taskId: Int): Flow<List<MediaTask>> = mediaTaskDao.getMediaForTaskIdFlow(taskId)
 
     fun insert(note: Note) {
         viewModelScope.launch {
@@ -161,62 +166,6 @@ class NoteViewModel(
         return noteDao.insert(note).toInt()
     }
 
-    fun upsertNoteAndMedia(note: Note, media: Media?, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            try {
-                // Verificar si es una actualización o inserción
-                if (note.id == 0) {
-                    // Inserción
-                    val noteId = noteDao.insert(note)
-                    media?.let {
-                        it.noteId = noteId.toInt() // Asignar el ID generado
-                        noteDao.insertMedia(it) // Inserta el medio
-                    }
-                    onComplete(true) // Operación completada con éxito
-                } else {
-                    // Actualización
-                    noteDao.update(note)
-                    media?.let {
-                        it.noteId = note.id // Usar el ID existente
-                        noteDao.insertMedia(it) // Inserta o actualiza el medio
-                    }
-                    onComplete(true) // Operación completada con éxito
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                onComplete(false) // Manejo de errores
-            }
-        }
-    }
-
-    fun upsertTaskAndMedia(task: Task, mediaTask: MediaTask?, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            try {
-                // Verificar si es una actualización o inserción
-                if (task.id == 0) {
-                    // Inserción
-                    val taskId = taskDao.insert(task)
-                    mediaTask?.let {
-                        it.taskId = taskId.toInt() // Asignar el ID generado
-                        taskDao.insertMediaTask(it) // Inserta el medio
-                    }
-                    onComplete(true) // Operación completada con éxito
-                } else {
-                    // Actualización
-                    taskDao.update(task)
-                    mediaTask?.let {
-                        it.taskId = task.id // Usar el ID existente
-                        taskDao.insertMediaTask(it) // Inserta o actualiza el medio
-                    }
-                    onComplete(true) // Operación completada con éxito
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                onComplete(false) // Manejo de errores
-            }
-        }
-    }
-
     fun insertMediaTask(mediaTask: MediaTask) {
         viewModelScope.launch {
             taskDao.insertMediaTask(mediaTask)
@@ -226,6 +175,20 @@ class NoteViewModel(
     fun insertMedia(media: Media) {
         viewModelScope.launch {
             noteDao.insertMedia(media)
+        }
+    }
+
+    // Para eliminar una media de la base de datos asociada a una nota
+    fun deleteMedia(media: Media) {
+        viewModelScope.launch {
+            mediaDao.delete(media)
+        }
+    }
+
+    // Para eliminar una media de la base de datos asociada a una tarea
+    fun deleteMediaTask(mediaTask: MediaTask) {
+        viewModelScope.launch {
+            mediaTaskDao.delete(mediaTask)
         }
     }
 }

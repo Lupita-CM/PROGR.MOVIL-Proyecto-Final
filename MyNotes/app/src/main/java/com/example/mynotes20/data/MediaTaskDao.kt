@@ -26,4 +26,11 @@ interface MediaTaskDao {
 
     @Delete
     suspend fun delete(mediaTask: MediaTask)
+
+    @Query("SELECT * FROM mediaTasks WHERE taskId = :taskId")
+    fun getMediaForTaskId(taskId: Int): List<MediaTask>
+
+    // Si estás usando Flow para observar los cambios:
+    @Query("SELECT * FROM mediaTasks WHERE taskId = :taskId")
+    fun getMediaForTaskIdFlow(taskId: Int): Flow<List<MediaTask>>
 }
