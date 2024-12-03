@@ -12,9 +12,11 @@ room = "2.6.1"
 ksp = "1.9.0-1.0.11"
 kotlinxCoroutines = "1.7.3"
 coil = "2.4.0"
+media = "1.6.0"
 # Si necesitas un plugin específico para Room, define su versión correctamente o elimínalo si no es necesario
 
 [libraries]
+androidx-media = { module = "androidx.media:media", version.ref = "media" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }

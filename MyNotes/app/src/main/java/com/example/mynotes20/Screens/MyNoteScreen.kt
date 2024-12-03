@@ -5,10 +5,14 @@ import NoteViewModel
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.media.Image
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.widget.LinearLayout
+import android.widget.MediaController
 import android.widget.Toast
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -77,12 +81,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.Role.Companion.Image
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.mynotes20.data.MediaTask
@@ -103,18 +109,81 @@ fun MediaItem(mediaType: String, filePath: String) {
                 )
             }
             "video" -> {
-                Icon(
-                    imageVector = Icons.Filled.VideoLibrary,
-                    contentDescription = "Video",
-                    tint = Color.White
+                val context = LocalContext.current
+                var isPlaying by remember { mutableStateOf(false) } // Estado para controlar la reproducción
+                val videoView = remember { VideoView(context) }
+
+                AndroidView(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clickable { // Hacer clic en el video para pausar/reproducir
+                            isPlaying = !isPlaying
+                        },
+                    factory = {
+                        videoView.apply {
+                            setVideoURI(Uri.parse(filePath))
+                            // Configurar otros parámetros del VideoView si es necesario
+                        }
+                    },
+                    update = { videoView ->
+                        if (isPlaying) {
+                            videoView.start()
+                        } else {
+                            videoView.pause()
+                        }
+                    }
                 )
+
+                // Limpiar VideoView cuando ya no se use
+                DisposableEffect(Unit) {
+                    onDispose {
+                        videoView.stopPlayback()
+                    }
+                }
             }
             "audio" -> {
-                Icon(
-                    imageVector = Icons.Filled.Audiotrack,
-                    contentDescription = "Audio",
-                    tint = Color.White
+                val context = LocalContext.current
+                var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
+                var isPlaying by remember { mutableStateOf(false) }
+
+                AndroidView(
+                    modifier = Modifier.size(80.dp),
+                    factory = {
+                        LinearLayout(context).apply {
+                            orientation = LinearLayout.VERTICAL
+
+                            val player = MediaPlayer().apply {
+                                setDataSource(context, Uri.parse(filePath))
+                                prepare() // Preparar el MediaPlayer
+                            }
+                            mediaPlayer = player
+
+                            val mediaController = MediaController(context).apply {
+                                setMediaPlayer(MyMediaController(player)) // Usar un wrapper para MediaController
+                                setAnchorView(this@apply) // Anclar el MediaController al LinearLayout
+                                isEnabled = true
+                            }
+                            addView(mediaController)
+                        }
+                    },
+                    update = { linearLayout ->
+                        val mediaController = linearLayout.getChildAt(0) as MediaController
+                        mediaController.show() // Mostrar el MediaController
+
+                        if (isPlaying) {
+                            mediaPlayer?.start()
+                        } else {
+                            mediaPlayer?.pause()
+                        }
+                    }
                 )
+
+                // Limpiar MediaPlayer cuando ya no se use
+                DisposableEffect(Unit) {
+                    onDispose {
+                        mediaPlayer?.release()
+                    }
+                }
             }
         }
         /*Spacer(modifier = Modifier.width(8.dp))
@@ -675,7 +744,7 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                                     //viewModel.insert(newTask)
                                     val id = viewModel.insertTaskAndGetId(newTask)
                                     newTask = newTask.copy(id = id.toInt())
-                                    Log.d("DateDebug", "Tarea guardada con fecha: ${newTask.dateComplete}")
+
                                 }
 
                                 newTask.let { task ->
