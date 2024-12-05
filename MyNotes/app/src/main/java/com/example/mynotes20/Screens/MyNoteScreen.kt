@@ -145,122 +145,41 @@ fun MediaItem(mediaType: String, filePath: String) {
                     }
                 }
             }
-            /*"audio" -> {
-                val context = LocalContext.current
-                var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
-                var isPlaying by remember { mutableStateOf(false) }
-
-                AndroidView(
-                    modifier = Modifier.size(80.dp),
-                    factory = {
-                        LinearLayout(context).apply {
-                            orientation = LinearLayout.VERTICAL
-
-                            val audioView = AudioView(context).apply {
-                                setAudioURI(Uri.parse(filePath))
-                            }
-                            addView(audioView)
-
-                            val mediaController = MediaController(context).apply {
-                                setMediaPlayer(audioView) // Asocia el MediaController al AudioView
-                                setAnchorView(this@apply) // Ancla el MediaController al LinearLayout
-                                isEnabled = true
-                            }
-                            addView(mediaController)
-
-                            // Inicializa el MediaPlayer
-                            mediaPlayer = MediaPlayer().apply {
-                                setDataSource(context, Uri.parse(filePath))
-                                prepare()
-                                setOnCompletionListener { // Liberar el MediaPlayer al finalizar la reproducción
-                                    release()
-                                    mediaPlayer = null
-                                }
-                            }
-                        }
-                    },
-                    update = { linearLayout ->
-                        val audioView = linearLayout.getChildAt(0) as AudioView
-                        val mediaController = linearLayout.getChildAt(1) as MediaController
-
-                        // Actualizar el estado del MediaPlayer y el AudioView
-                        if (isPlaying) {
-                            mediaPlayer?.start()
-                            audioView.start()
-                        } else {
-                            mediaPlayer?.pause()
-                            audioView.pause()
-                        }
-
-                        mediaController.show() // Mostrar el MediaController
-                    }
-                )
-
-                // Controlar la reproducción al hacer clic en el elemento
-                Column(modifier = Modifier.clickable { isPlaying = !isPlaying }) {
-                    // ... (resto del contenido del Column) ...
-                }
-
-                // Limpiar el MediaPlayer cuando la vista se elimine
-                DisposableEffect(Unit) {
-                    onDispose {
-                        mediaPlayer?.release()
-                        mediaPlayer = null
-                    }
-                }
-            }*/
             "audio" -> {
                 val context = LocalContext.current
                 var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
                 var isPlaying by remember { mutableStateOf(false) }
 
-                AndroidView(
-                    modifier = Modifier.size(80.dp),
-                    factory = {
-                        LinearLayout(context).apply {
-                            orientation = LinearLayout.VERTICAL
+                // Configuración inicial del MediaPlayer
+                LaunchedEffect(filePath) {
+                    mediaPlayer = MediaPlayer().apply {
+                        setDataSource(context, Uri.parse(filePath))
+                        prepare() // Prepara el audio
+                    }
+                }
 
-                            // Crear el MediaPlayer
-                            val player = MediaPlayer().apply {
-                                setDataSource(context, Uri.parse(filePath))
-                                prepare() // Preparar el MediaPlayer
-                            }
-                            mediaPlayer = player
-
-                            // Crear el MediaController
-                            val mediaController = MediaController(context)
-                            mediaController.setMediaPlayer(object : MediaController.MediaPlayerControl {
-                                override fun start() = player.start()
-                                override fun pause() = player.pause()
-                                override fun getDuration(): Int = player.duration
-                                override fun getCurrentPosition(): Int = player.currentPosition
-                                override fun seekTo(pos: Int) = player.seekTo(pos)
-                                override fun isPlaying(): Boolean = player.isPlaying
-                                override fun getBufferPercentage(): Int = 0
-                                override fun canPause(): Boolean = true
-                                override fun canSeekBackward(): Boolean = true
-                                override fun canSeekForward(): Boolean = true
-                                override fun getAudioSessionId(): Int = player.audioSessionId
-                            })
-
-                            // Anclar el MediaController al layout
-                            mediaController.setAnchorView(this)
-                            mediaController.show() // Mostrar los controles
-
-                            // **No agregar mediaController manualmente** (se elimina addView(mediaController))
-                        }
-                    },
-                    update = { linearLayout ->
-                        // Actualizar el estado del MediaPlayer si es necesario
+                // Controles personalizados para audio
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        isPlaying = !isPlaying
                         if (isPlaying) {
                             mediaPlayer?.start()
                         } else {
                             mediaPlayer?.pause()
                         }
                     }
-                )
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pausar audio" else "Reproducir audio",
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    //Text(text = "Audio: $filePath")
+                }
 
-                // Limpiar el MediaPlayer cuando ya no se use
+                // Liberar recursos cuando se destruye el Composable
                 DisposableEffect(Unit) {
                     onDispose {
                         mediaPlayer?.release()
