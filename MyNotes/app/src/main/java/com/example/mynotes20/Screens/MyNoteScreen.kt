@@ -3,11 +3,14 @@ package com.example.mynotes20.Screens
 
 import NoteViewModel
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.Image
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.LinearLayout
 import android.widget.MediaController
@@ -81,6 +84,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -141,6 +145,70 @@ fun MediaItem(mediaType: String, filePath: String) {
                     }
                 }
             }
+            /*"audio" -> {
+                val context = LocalContext.current
+                var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
+                var isPlaying by remember { mutableStateOf(false) }
+
+                AndroidView(
+                    modifier = Modifier.size(80.dp),
+                    factory = {
+                        LinearLayout(context).apply {
+                            orientation = LinearLayout.VERTICAL
+
+                            val audioView = AudioView(context).apply {
+                                setAudioURI(Uri.parse(filePath))
+                            }
+                            addView(audioView)
+
+                            val mediaController = MediaController(context).apply {
+                                setMediaPlayer(audioView) // Asocia el MediaController al AudioView
+                                setAnchorView(this@apply) // Ancla el MediaController al LinearLayout
+                                isEnabled = true
+                            }
+                            addView(mediaController)
+
+                            // Inicializa el MediaPlayer
+                            mediaPlayer = MediaPlayer().apply {
+                                setDataSource(context, Uri.parse(filePath))
+                                prepare()
+                                setOnCompletionListener { // Liberar el MediaPlayer al finalizar la reproducción
+                                    release()
+                                    mediaPlayer = null
+                                }
+                            }
+                        }
+                    },
+                    update = { linearLayout ->
+                        val audioView = linearLayout.getChildAt(0) as AudioView
+                        val mediaController = linearLayout.getChildAt(1) as MediaController
+
+                        // Actualizar el estado del MediaPlayer y el AudioView
+                        if (isPlaying) {
+                            mediaPlayer?.start()
+                            audioView.start()
+                        } else {
+                            mediaPlayer?.pause()
+                            audioView.pause()
+                        }
+
+                        mediaController.show() // Mostrar el MediaController
+                    }
+                )
+
+                // Controlar la reproducción al hacer clic en el elemento
+                Column(modifier = Modifier.clickable { isPlaying = !isPlaying }) {
+                    // ... (resto del contenido del Column) ...
+                }
+
+                // Limpiar el MediaPlayer cuando la vista se elimine
+                DisposableEffect(Unit) {
+                    onDispose {
+                        mediaPlayer?.release()
+                        mediaPlayer = null
+                    }
+                }
+            }*/
             "audio" -> {
                 val context = LocalContext.current
                 var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
@@ -152,24 +220,38 @@ fun MediaItem(mediaType: String, filePath: String) {
                         LinearLayout(context).apply {
                             orientation = LinearLayout.VERTICAL
 
+                            // Crear el MediaPlayer
                             val player = MediaPlayer().apply {
                                 setDataSource(context, Uri.parse(filePath))
                                 prepare() // Preparar el MediaPlayer
                             }
                             mediaPlayer = player
 
-                            val mediaController = MediaController(context).apply {
-                                setMediaPlayer(MyMediaController(player)) // Usar un wrapper para MediaController
-                                setAnchorView(this@apply) // Anclar el MediaController al LinearLayout
-                                isEnabled = true
-                            }
-                            addView(mediaController)
+                            // Crear el MediaController
+                            val mediaController = MediaController(context)
+                            mediaController.setMediaPlayer(object : MediaController.MediaPlayerControl {
+                                override fun start() = player.start()
+                                override fun pause() = player.pause()
+                                override fun getDuration(): Int = player.duration
+                                override fun getCurrentPosition(): Int = player.currentPosition
+                                override fun seekTo(pos: Int) = player.seekTo(pos)
+                                override fun isPlaying(): Boolean = player.isPlaying
+                                override fun getBufferPercentage(): Int = 0
+                                override fun canPause(): Boolean = true
+                                override fun canSeekBackward(): Boolean = true
+                                override fun canSeekForward(): Boolean = true
+                                override fun getAudioSessionId(): Int = player.audioSessionId
+                            })
+
+                            // Anclar el MediaController al layout
+                            mediaController.setAnchorView(this)
+                            mediaController.show() // Mostrar los controles
+
+                            // **No agregar mediaController manualmente** (se elimina addView(mediaController))
                         }
                     },
                     update = { linearLayout ->
-                        val mediaController = linearLayout.getChildAt(0) as MediaController
-                        mediaController.show() // Mostrar el MediaController
-
+                        // Actualizar el estado del MediaPlayer si es necesario
                         if (isPlaying) {
                             mediaPlayer?.start()
                         } else {
@@ -178,10 +260,11 @@ fun MediaItem(mediaType: String, filePath: String) {
                     }
                 )
 
-                // Limpiar MediaPlayer cuando ya no se use
+                // Limpiar el MediaPlayer cuando ya no se use
                 DisposableEffect(Unit) {
                     onDispose {
                         mediaPlayer?.release()
+                        mediaPlayer = null
                     }
                 }
             }
@@ -231,16 +314,19 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
     val selectedMediaList = remember { mutableStateListOf<Pair<Uri, String>>() } // Lista de URIs y tipos de medios
     //var showMediaOptions by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    // Variable para almacenar la URI de la imagen capturada
+    var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
+
 
     // Lanzadores para permisos
-    val permissionLauncher = rememberLauncherForActivityResult(
+    /*val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (!isGranted) {
                 Toast.makeText(context, "Permiso denegado para acceder a archivos", Toast.LENGTH_SHORT).show()
             }
         }
-    )
+    )*/
 
     // Lanzadores para actividades
     val launcherForImage = rememberLauncherForActivityResult(
@@ -269,16 +355,44 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
         }
     }
 
+    // Lanzador para la cámara
     val launcherForCamera = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
             if (success) {
-                selectedMediaList.add(Uri.EMPTY to "image") // Reemplaza Uri.EMPTY con la URI generada
+                capturedImageUri?.let { uri ->
+                    selectedMediaList.add(uri to "image")
+                }
             }
         }
     )
 
-    // Solicitar permiso para acceder a archivos
+    // Lanzador para grabar videos
+    val launcherForCamaraVideo = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val videoUri = result.data?.data
+                videoUri?.let { uri ->
+                    selectedMediaList.add(uri to "video")
+                }
+            }
+        }
+    )
+
+    // Lanzador para la grabadora de audio
+    val launcherForAudioRecorder = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data?.data // Obtener la URI del audio grabado
+            if (uri != null) {
+                selectedMediaList.add(uri to "audio")
+            }
+        }
+    }
+
+    /*// Solicitar permiso para acceder a archivos
     LaunchedEffect(Unit) {
         if (ContextCompat.checkSelfPermission(
                 context,
@@ -287,7 +401,7 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
         ) {
             permissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-    }
+    }*/
 
 
     Scaffold(
@@ -299,6 +413,26 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
             if (showMediaOptions) {
                 val context = LocalContext.current
                 val activity = LocalContext.current as ComponentActivity
+
+                // Función para solicitar permisos
+                fun requestPermission(
+                    permission: String,
+                    requestCode: Int,
+                    rationaleMessage: String,
+                    onGranted: () -> Unit
+                ) {
+                    if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+                        onGranted()
+                    } else {
+                        if (ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)) {
+                            // Mostrar una explicación adicional del motivo del permiso
+                            Toast.makeText(context, rationaleMessage, Toast.LENGTH_LONG).show()
+                        }
+                        // Solicitar el permiso nuevamente
+                        ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
+                    }
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -332,19 +466,14 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { if (ContextCompat.checkSelfPermission(context,
-                                    android.Manifest.permission.RECORD_AUDIO)
-                                == PackageManager.PERMISSION_GRANTED
-
+                            IconButton(onClick = {
+                                requestPermission(
+                                    android.Manifest.permission.RECORD_AUDIO,
+                                    REQUEST_CODE_RECORD_AUDIO,
+                                    "Se necesita acceso al micrófono para grabar audio."
                                 ) {
-                                    // Acción para grabar audio si el permiso está concedido
-                                } else {
-                                    // Solicitar el permiso de grabación de audio
-                                    ActivityCompat.requestPermissions(
-                                        activity,
-                                        arrayOf(android.Manifest.permission.RECORD_AUDIO),
-                                        REQUEST_CODE_RECORD_AUDIO
-                                    )
+                                    val intent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
+                                    launcherForAudioRecorder.launch(intent)
                                 }
                             }) {
                                 Icon(Icons.Default.Mic, contentDescription = "Grabar Audio")
@@ -353,23 +482,35 @@ fun MyNotesScreen(navController: NavController, viewModel: NoteViewModel) {
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA)
-                                == PackageManager.PERMISSION_GRANTED
-                            ) {
-                                // Lanzar la actividad de la cámara si el permiso está concedido
-                                val uri = ComposeFileProvider.getImageUri(context)
-                                launcherForCamera.launch(uri)
-                            } else {
-                                // Solicitar el permiso de la cámara
-                                ActivityCompat.requestPermissions(
-                                    activity,
-                                    arrayOf(android.Manifest.permission.CAMERA),
-                                    REQUEST_CODE_CAMERA
-                                )
-                            } }) {
+                            IconButton(onClick = {
+                                requestPermission(
+                                    android.Manifest.permission.CAMERA,
+                                    REQUEST_CODE_CAMERA,
+                                    "Se necesita acceso a la cámara para tomar fotos."
+                                ) {
+                                    capturedImageUri = ComposeFileProvider.getImageUri(context)
+                                    launcherForCamera.launch(capturedImageUri!!)
+                                }
+                            }) {
                                 Icon(Icons.Default.CameraAlt, contentDescription = "Cámara")
                             }
                             Text(text = stringResource(R.string.Camera), color = Color.White)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            // Botón para grabar videos
+                            IconButton(onClick = {
+                                requestPermission(
+                                    android.Manifest.permission.CAMERA,
+                                    REQUEST_CODE_CAMERA,
+                                    "Se necesita acceso a la cámara para grabar videos."
+                                ) {
+                                    val videoIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+                                    launcherForCamaraVideo.launch(videoIntent)
+                                }
+                            }) {
+                                Icon(Icons.Default.Videocam, contentDescription = "Video")
+                            }
+                            Text(text = stringResource(R.string.Video), color = Color.White)
                         }
                     }
                 }
